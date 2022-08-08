@@ -1,0 +1,896 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>客户管理</title>
+    <link href="/common/element/element-index.css" type="text/css" rel="stylesheet"/>
+    <link href="/common/css/baseStyle.css" type="text/css" rel="stylesheet"/>
+    <script type="text/javascript" src="/common/jquery/jquery-3.2.1.min.js"></script>
+    <script type="text/javascript" src="/common/vue/vue.min.js"></script>
+    <script type="text/javascript" src="/common/element/element-index.js"></script>
+    <script type="text/javascript" src="/common/axios/axios.min.js"></script>
+    <script type="text/javascript" src="/common/myutil/axios_util.js"></script>
+    <script type="text/javascript" src="/common/myutil/my_util.js"></script>
+    <script type="text/javascript" src="/common/myutil/myEl.js"></script>
+
+</head>
+<body>
+<div id="vmApp" v-cloak>
+    <template>
+        <el-card>
+            <!-- 查询模块-->
+            <el-row>
+                <el-form :inline="true" :model="queryForm" ref="queryFormRef" size="medium" class="demo-form-inline">
+                    <el-form-item label="客户姓名" prop="csmName">
+                        <el-input v-model="queryForm.csmName"></el-input>
+                    </el-form-item>
+                    <el-form-item label="手机号" prop="mobile">
+                        <el-input v-model="queryForm.mobile"></el-input>
+                    </el-form-item>
+                    <el-form-item label="客户类型" prop="type">
+                        <el-select v-model="queryForm.type">
+                            <el-option v-for="item in typeOptions"
+                                       :key="item.value"
+                                       :label="item.label"
+                                       :value="item.value">
+                            </el-option>
+                        </el-select>
+                    </el-form-item>
+                    <el-form-item>
+                        <el-button type="primary" @click="doQuery">查询</el-button>
+                        <el-button @click="resetQuery('queryFormRef')">重置</el-button>
+                    </el-form-item>
+
+                    <el-button style="float: right;margin-right: 150px" size="medium" @click="addData" type="primary">新增
+                    </el-button>
+                </el-form>
+            </el-row>
+            <!-- 列表模块 -->
+            <el-table :data="tableData" v-loading="tableConfig.loading" :max-height="$(document).height() - 150" stripe
+                      border
+                      highlight-current-row style="width: 98%" :cell-style="{padding:0}">
+                <el-table-column :type="tableConfig.type" width="50"></el-table-column>
+                <el-table-column prop="unCode" label="编号" show-overflow-tooltip></el-table-column>
+                <el-table-column prop="csmName" label="客户姓名" show-overflow-tooltip></el-table-column>
+                <el-table-column prop="mobile" label="手机号" show-overflow-tooltip></el-table-column>
+                <el-table-column prop="type" label="用户类型" show-overflow-tooltip
+                                 :formatter="colFormatter"></el-table-column>
+                <el-table-column prop="sex" label="性别" width="80" show-overflow-tooltip
+                                 :formatter="colFormatter"></el-table-column>
+                <el-table-column prop="age" label="年龄" width="80" show-overflow-tooltip></el-table-column>
+                <el-table-column prop="balance" label="储值余额" width="100" show-overflow-tooltip></el-table-column>
+                <el-table-column prop="createTime" label="创建时间" show-overflow-tooltip></el-table-column>
+                <el-table-column prop="deleted" label="状态" width="80" show-overflow-tooltip
+                                 :formatter="colFormatter"></el-table-column>
+                <el-table-column fixed="right" label="操作" width="320">
+                    <template slot-scope="scope">
+                        <el-button v-if="scope.row.deleted === 0" @click="doTableEvent(scope.row, 'edit')" type="info"
+                                   size="mini">编辑
+                        </el-button>
+                        <el-button v-if="scope.row.deleted === 0 && scope.row.type === 2"
+                                   @click="doTableEvent(scope.row, 'pay')" type="success"
+                                   size="mini">充值
+                        </el-button>
+                        <el-button v-if="scope.row.deleted === 0" @click="doTableEvent(scope.row, 'expense')"
+                                   type="warning"
+                                   size="mini">消费
+                        </el-button>
+                        <el-button v-if="scope.row.deleted === 0" @click="doTableEvent(scope.row, 'deleted')"
+                                   type="danger"
+                                   size="mini">删除
+                        </el-button>
+                        <el-button v-else @click="doTableEvent(scope.row, 'recover')" type="success" size="mini">恢复
+                        </el-button>
+                    </template>
+                </el-table-column>
+            </el-table>
+            <!-- 分页部分 -->
+            <div class="block" v-if="pageable.total > pageable.size">
+                <el-pagination
+                        @size-change="handleSizeChange"
+                        @current-change="handleCurrentChange"
+                        :current-page="pageable.page"
+                        :page-sizes="[10, 20, 50, 100]"
+                        :page-size="pageable.size"
+                        layout="total, sizes, prev, pager, next, jumper"
+                        :total="pageable.total">
+                </el-pagination>
+            </div>
+
+            <!-- 新增编辑 -->
+            <el-dialog :title="editFormFlag === 0 ? '新增' : '编辑'" ref="editFormDialog" :close-on-click-modal="false"
+                       width="30%"
+                       :visible.sync="editFormVisible"
+                       :before-close="handleEditFormClose">
+                <el-form :model="editForm" :rules="editFormRules" ref="editFormRef" label-width="100px"
+                         label-position="right" class="edit-form">
+                    <el-form-item v-if="editFormFlag === 1" label="编号" prop="unCode">
+                        <el-input v-model="editForm.unCode" :disabled="true"></el-input>
+                    </el-form-item>
+                    <el-form-item label="客户姓名" prop="csmName">
+                        <el-input v-model="editForm.csmName"></el-input>
+                    </el-form-item>
+                    <el-form-item label="手机号" prop="mobile">
+                        <el-input v-model="editForm.mobile"></el-input>
+                    </el-form-item>
+                    <el-form-item label="用户类型" prop="type">
+                        <el-select v-model="editForm.type">
+                            <el-option v-for="item in typeOptions"
+                                       :key="item.value"
+                                       :label="item.label"
+                                       :value="item.value">
+                            </el-option>
+                        </el-select>
+                    </el-form-item>
+                    <!--<el-form-item v-if="editFormFlag === 0 && editForm.type === 2" label="储值卡金额" prop="balance">
+                        <el-input-number v-model="editForm.balance" controls-position="right" :precision="2" :step="100.0"
+                                         :min="0"></el-input-number>
+                    </el-form-item>-->
+                    <el-form-item label="性别" prop="sex">
+                        <el-select v-model="editForm.sex">
+                            <el-option v-for="item in sexOptions"
+                                       :key="item.value"
+                                       :label="item.label"
+                                       :value="item.value">
+                            </el-option>
+                        </el-select>
+                    </el-form-item>
+                    <el-form-item label="年龄" prop="age">
+                        <el-input-number v-model="editForm.age" controls-position="right" :step="1"
+                                         :min="0"></el-input-number>
+                    </el-form-item>
+
+
+                </el-form>
+                <div slot="footer" class="dialog-footer" style="text-align: center">
+                    <el-button @click="handleEditFormClose">取 消</el-button>
+                    <el-button type="primary" @click="saveData">保 存</el-button>
+                </div>
+            </el-dialog>
+
+            <!-- 充值 -->
+            <el-dialog ref="payFormDialog" :close-on-click-modal="false"
+                       width="30%" :visible.sync="payFormVisible" title="储值卡 - 充值">
+                <div style="padding-left: 50px">
+                    <el-descriptions title="基本信息" :column="2">
+                        <el-descriptions-item label="客户姓名">{{ payForm.csmName }}</el-descriptions-item>
+                        <el-descriptions-item label="余额">
+                            <el-tag size="small">{{payForm.balance}}</el-tag>
+                        </el-descriptions-item>
+                    </el-descriptions>
+                    <div style="padding-top: 40px">
+                        <span style="padding-right: 20px">充值金额:</span>
+                        <el-input-number v-model="payForm.payAmount" :precision="2" :step="100.00" :min="100.00"
+                                         controls-position="right"></el-input-number>
+                    </div>
+                </div>
+                <div slot="footer" class="dialog-footer" style="text-align: center">
+                    <el-button type="primary" @click="savePayAmount">充 值</el-button>
+                </div>
+            </el-dialog>
+
+            <!-- 消费 -->
+            <el-drawer :title="drawerConfig.title" :visible.sync="drawerVisible"
+                       size="85%">
+                <div class="drawer-tabs">
+                    <el-tabs v-model="drawerConfig.activeName" type="card" @tab-click="handleTabClick">
+                        <el-tab-pane name="1"><span slot="label"><i class="el-icon-suitcase"></i> 套餐消费</span>
+                            <div>
+                                <el-row>
+                                    <el-button type="primary" @click="openComboTableDrawer">购买套餐</el-button>
+                                </el-row>
+                                <el-row>
+                                    <el-table :data="canUseComboTableData" :max-height="$(document).height() - 150"
+                                              stripe
+                                              border highlight-current-row style="width: 98%" :cell-style="{padding:0}">
+                                        <el-table-column :type="tableConfig.type" width="50"></el-table-column>
+                                        <el-table-column prop="cboUnCode" label="套餐编码"
+                                                         show-overflow-tooltip width="120"></el-table-column>
+                                        <el-table-column prop="cboName" label="套餐名称"
+                                                         show-overflow-tooltip></el-table-column>
+                                        <el-table-column prop="cboNum" label="总次数" width="80"
+                                                         show-overflow-tooltip></el-table-column>
+                                        <el-table-column prop="lastNum" label="剩余次数" width="80"
+                                                         show-overflow-tooltip></el-table-column>
+                                        <el-table-column prop="cboPrice" label="单价" width="80"
+                                                         show-overflow-tooltip></el-table-column>
+                                        <el-table-column prop="cboVipPrice" label="会员价" width="80"
+                                                         show-overflow-tooltip></el-table-column>
+                                        <el-table-column prop="amount" label="实付金额" width="80"
+                                                         show-overflow-tooltip></el-table-column>
+                                        <el-table-column prop="createTime" label="购买时间" width="180"
+                                                         show-overflow-tooltip></el-table-column>
+                                        <el-table-column prop="cboDetail" label="套餐明细"
+                                                         show-overflow-tooltip></el-table-column>
+                                        <el-table-column fixed="right" label="操作" width="200">
+                                            <template slot-scope="scope">
+                                                <el-button
+                                                        @click="doTableEvent(scope.row, 'comboCutNum')" type="danger"
+                                                        size="mini">消减次数
+                                                </el-button>
+                                                <el-button
+                                                        @click="doTableEvent(scope.row, 'comboUseRecord')"
+                                                        type="success"
+                                                        size="mini">使用记录
+                                                </el-button>
+                                            </template>
+                                        </el-table-column>
+                                    </el-table>
+                                </el-row>
+                            </div>
+                            <el-drawer
+                                    title="选择套餐"
+                                    :append-to-body="true"
+                                    :visible.sync="innerDrawer"
+                                    size="75%">
+                                <div class="drawer-tabs">
+                                    <!-- 查询模块-->
+                                    <el-row>
+                                        <el-form :inline="true" :model="comboQueryForm" ref="comboQueryFormRef"
+                                                 size="medium"
+                                                 class="demo-form-inline">
+                                            <el-form-item label="套餐名称" prop="cboName">
+                                                <el-input v-model="comboQueryForm.cboName"></el-input>
+                                            </el-form-item>
+                                            <el-form-item>
+                                                <el-button type="primary" @click="comboDoQuery">查询</el-button>
+                                                <el-button @click="comboResetQuery('comboQueryFormRef')">重置</el-button>
+                                            </el-form-item>
+                                        </el-form>
+                                    </el-row>
+                                    <!-- 列表模块 -->
+                                    <el-table :data="comboTableData"
+                                              :max-height="$(document).height() - 150" stripe
+                                              border
+                                              highlight-current-row style="width: 98%" :cell-style="{padding:0}">
+                                        <el-table-column :type="tableConfig.type" width="50"></el-table-column>
+                                        <el-table-column prop="unCode" label="编号" width="120"
+                                                         show-overflow-tooltip></el-table-column>
+                                        <el-table-column prop="cboName" label="套餐名称"
+                                                         show-overflow-tooltip></el-table-column>
+                                        <el-table-column prop="price" label="单价" width="80"
+                                                         show-overflow-tooltip></el-table-column>
+                                        <el-table-column prop="vipPrice" label="会员价" width="80"
+                                                         show-overflow-tooltip></el-table-column>
+                                        <el-table-column prop="num" label="使用次数" width="80"
+                                                         show-overflow-tooltip></el-table-column>
+                                        <el-table-column prop="createTime" label="创建时间" width="180"
+                                                         show-overflow-tooltip></el-table-column>
+                                        <el-table-column prop="detail" label="明细"
+                                                         show-overflow-tooltip></el-table-column>
+                                        <el-table-column
+                                                fixed="right"
+                                                label="操作"
+                                                width="80">
+                                            <template slot-scope="scope">
+                                                <el-button @click="doTableEvent(scope.row, 'payCombo')" type="text"
+                                                           size="medium">购买
+                                                </el-button>
+                                            </template>
+                                        </el-table-column>
+                                    </el-table>
+                                    <!-- 分页部分 -->
+                                    <div class="block" v-if="comboPageable.total > comboPageable.size">
+                                        <el-pagination
+                                                @size-change="handleComboSizeChange"
+                                                @current-change="handleComboCurrentChange"
+                                                :current-page="comboPageable.page"
+                                                :page-sizes="[8, 10, 20, 50, 100]"
+                                                :page-size="comboPageable.size"
+                                                layout="total, sizes, prev, pager, next, jumper"
+                                                :total="comboPageable.total">
+                                        </el-pagination>
+                                    </div>
+                                </div>
+                            </el-drawer>
+
+
+                        </el-tab-pane>
+                        <el-tab-pane name="2"><span slot="label"><i class="el-icon-data-analysis"></i> 项目消费</span>
+                            <div>
+                                <!-- 查询模块-->
+                                <el-row>
+                                    <el-form :inline="true" :model="projectQueryForm" ref="projectQueryFormRef"
+                                             size="medium"
+                                             class="demo-form-inline">
+                                        <el-form-item label="套餐名称" prop="proName">
+                                            <el-input v-model="projectQueryForm.cboName"></el-input>
+                                        </el-form-item>
+                                        <el-form-item>
+                                            <el-button type="primary" @click="projectDoQuery">查询</el-button>
+                                            <el-button @click="projectResetQuery('projectQueryFormRef')">重置</el-button>
+                                        </el-form-item>
+                                    </el-form>
+                                </el-row>
+                                <!-- 列表模块 -->
+                                <el-table :data="projectTableData"
+                                          :max-height="$(document).height() - 150" stripe
+                                          border
+                                          highlight-current-row style="width: 98%" :cell-style="{padding:0}">
+                                    <el-table-column :type="tableConfig.type" width="50"></el-table-column>
+                                    <el-table-column prop="unCode" label="编号" width="120"
+                                                     show-overflow-tooltip></el-table-column>
+                                    <el-table-column prop="proName" label="项目名称"
+                                                     show-overflow-tooltip></el-table-column>
+                                    <el-table-column prop="type" label="项目类型" width="100" :formatter="proColFormatter"
+                                                     show-overflow-tooltip></el-table-column>
+                                    <el-table-column prop="price" label="单价" width="80"
+                                                     show-overflow-tooltip></el-table-column>
+                                    <el-table-column prop="vipPrice" label="会员价" width="80"
+                                                     show-overflow-tooltip></el-table-column>
+                                    <el-table-column prop="createTime" label="创建时间" width="180"
+                                                     show-overflow-tooltip></el-table-column>
+                                    <el-table-column prop="note" label="备注" show-overflow-tooltip></el-table-column>
+                                    <el-table-column
+                                            fixed="right"
+                                            label="操作"
+                                            width="80">
+                                        <template slot-scope="scope">
+                                            <el-button @click="doTableEvent(scope.row, 'payCombo')" type="text"
+                                                       size="medium">购买
+                                            </el-button>
+                                        </template>
+                                    </el-table-column>
+                                </el-table>
+                                <!-- 分页部分 -->
+                                <div class="block" v-if="projectPageable.total > projectPageable.size">
+                                    <el-pagination
+                                            @size-change="handleProjectSizeChange"
+                                            @current-change="handleProjectCurrentChange"
+                                            :current-page="projectPageable.page"
+                                            :page-sizes="[8,10, 20, 50, 100]"
+                                            :page-size="projectPageable.size"
+                                            layout="total, sizes, prev, pager, next, jumper"
+                                            :total="projectPageable.total">
+                                    </el-pagination>
+                                </div>
+                            </div>
+
+                        </el-tab-pane>
+                    </el-tabs>
+                </div>
+            </el-drawer>
+
+            <!-- 支付确认 -->
+            <el-dialog ref="amountFormDialog" :close-on-click-modal="false"
+                       width="20%" :visible.sync="amountFormVisible" title="实付金额">
+                <div>
+                    <span style="padding-right: 10px">支付方式:</span>
+                    <el-radio-group v-model="drawerConfig.payWay">
+                        <el-radio :label=1>线下支付</el-radio>
+                        <el-radio :label=2>充值卡支付</el-radio>
+                    </el-radio-group>
+                </div>
+                <div style="padding-top: 30px">
+                    <span style="padding-right: 20px">金额:</span>
+                    <el-input-number v-model="drawerConfig.amount" :precision="2" :step="1.00" :min="0.00"
+                                     controls-position="right"></el-input-number>
+                </div>
+                <div slot="footer" class="dialog-footer" style="text-align: center">
+                    <el-button type="primary" @click="payCombo">确认购买</el-button>
+                </div>
+            </el-dialog>
+
+            <!-- 套餐使用记录 -->
+            <el-dialog ref="comboUseRecordTableDialog" :close-on-click-modal="false"
+                       width="30%" :visible.sync="comboUseRecordTableVisible" title="使用记录">
+                <el-table :data="comboUseRecordData">
+                    <el-table-column :type="tableConfig.type" width="50"></el-table-column>
+                    <el-table-column property="cboName" label="套餐名称" width="200"></el-table-column>
+                    <el-table-column property="createTime" label="使用时间" width="200"></el-table-column>
+                </el-table>
+            </el-dialog>
+
+        </el-card>
+    </template>
+</div>
+
+<script>
+    let vData = {
+        queryForm: {
+            csmName: '',
+            mobile: '',
+            type: ''
+        },
+        typeOptions: [{
+            value: 1,
+            label: '普通客户'
+        }, {
+            value: 2,
+            label: 'vip客户'
+        }],
+        sexOptions: [{
+            value: 1,
+            label: '男'
+        }, {
+            value: 2,
+            label: '女'
+        }],
+        tableData: [],
+        tableConfig: {
+            loading: true,
+            type: 'index',
+        },
+        pageable: {
+            page: 1,
+            size: 10,
+            total: 0
+        },
+        editFormVisible: false,
+        editFormFlag: 0,
+        editForm: {},
+        editFormRules: {
+            csmName: [{required: true, message: '请输入客户姓名', trigger: 'blur'}],
+            mobile: [{required: true, message: '请输入客户手机号', trigger: 'blur'}],
+            type: [{required: true, message: '请选择客户类型', trigger: 'change'}],
+            sex: [{required: true, message: '请选择客户性别', trigger: 'change'}],
+            age: [{required: true, message: '请输入客户年龄', trigger: 'blur'}],
+        },
+        payFormVisible: false,
+        payForm: {
+            payAmount: '100.00'
+        },
+        drawerVisible: false,
+        drawerConfig: {
+            title: '客户',
+            activeName: '1',
+            currentCsmId: 0,
+            currentCboId: 0,
+            payWay: 1,
+            amount: 0
+        },
+        canUseComboTableData: [],
+        innerDrawer: false,
+        comboTableData: [],
+        comboQueryForm: {
+            cboName: ''
+        },
+        comboPageable: {
+            page: 1,
+            size: 8,
+            total: 0
+        },
+        amountFormVisible: false,
+        projectTableData: [],
+        projectQueryForm: {
+            proName: ''
+        },
+        projectPageable: {
+            page: 1,
+            size: 8,
+            total: 0
+        },
+        comboUseRecordTableVisible: false,
+        comboUseRecordData: []
+
+    };
+
+    let vm = new Vue({
+        el: '#vmApp',
+        data: vData,
+        methods: {
+            doQuery,
+            resetQuery,
+            comboDoQuery,
+            comboResetQuery,
+            projectDoQuery,
+            projectResetQuery,
+            addData,
+            doTableEvent,
+            colFormatter,
+            proColFormatter,
+            handleSizeChange,
+            handleCurrentChange,
+            handleComboSizeChange,
+            handleComboCurrentChange,
+            handleProjectSizeChange,
+            handleProjectCurrentChange,
+            handleEditFormClose,
+            saveData,
+            savePayAmount,
+            handleTabClick,
+            openComboTableDrawer,
+            payCombo,
+        }
+    });
+
+    $(function () {
+        getData();
+    });
+
+    function getData() {
+        vData.tableConfig.loading = true;
+        let vJsonForm = {"pageable": vData.pageable};
+        vJsonForm = Object.assign(vJsonForm, vData.queryForm)
+        axios.post('/api/customer/list', vJsonForm)
+            .then(function (response) {
+                let res = response.data;
+                vData.tableData = res.data.content;
+                vData.pageable.total = res.data.count;
+                vData.tableConfig.loading = false;
+            })
+            .catch(function (error) {
+                vData.tableData.loading = false;
+            })
+
+    }
+
+    function doTableEvent(row, methodName) {
+        console.log(methodName, row);
+        let rowData = Object.assign({}, row);
+        if (methodName === 'edit') {
+            vm.editFormFlag = 1;
+            vm.editFormVisible = true;
+            vm.editForm = rowData;
+        } else if (methodName === 'deleted') {
+            updateDeleted(rowData.id, rowData.id);
+        } else if (methodName === 'recover') {
+            updateDeleted(rowData.id, 0);
+        } else if (methodName === 'pay') {
+            console.log('充值')
+            vm.payFormVisible = true;
+            vm.payForm.id = rowData.id;
+            vm.payForm.csmName = rowData.csmName;
+            vm.payForm.balance = rowData.balance == null ? 0 : rowData.balance;
+        } else if (methodName === 'expense') {
+            console.log('消费')
+            vm.drawerConfig.title = "客户 - (" + rowData.csmName + ")";
+            vm.drawerVisible = true;
+            vm.drawerConfig.currentCsmId = rowData.id;
+            if (vm.drawerConfig.activeName === '1') {
+                getCustomerCombo(rowData.id);
+            }
+        } else if (methodName === 'comboCutNum') {
+            console.log('消减套餐次数')
+            comboCutDown(rowData.id);
+        } else if (methodName === 'comboUseRecord') {
+            console.log('使用记录')
+            vm.comboUseRecordTableVisible = true;
+            getComboUseRecord(rowData.id);
+        } else if (methodName === 'payCombo') {
+            console.log('打开实付金额的页面')
+            vm.amountFormVisible = true;
+            vm.drawerConfig.currentCboId = rowData.id;
+            vm.drawerConfig.amount = rowData.vipPrice;
+        }
+    }
+
+    function colFormatter(row, column, cellValue, index) {
+        if (column.property === 'type') {
+            if (cellValue === 1) {
+                return '普通客户';
+            } else if (cellValue === 2) {
+                return 'vip客户';
+            }
+        }
+        if (column.property === 'sex') {
+            if (cellValue === 1) {
+                return '男';
+            } else if (cellValue === 2) {
+                return '女';
+            } else {
+                return '不详'
+            }
+        }
+        if (column.property === 'deleted') {
+            if (cellValue === 0) {
+                return '正常';
+            } else {
+                return '已删除';
+            }
+        }
+
+    }
+
+    function proColFormatter(row, column, cellValue, index) {
+        if (column.property === 'type') {
+            if (cellValue === 1) {
+                return '面部护理';
+            } else if (cellValue === 2) {
+                return '身体护理';
+            }
+        }
+    }
+
+    function handleSizeChange(val) {
+        vData.pageable.size = val;
+        getData();
+    }
+
+    function handleCurrentChange(val) {
+        vData.pageable.page = val;
+        getData();
+    }
+
+    function doQuery() {
+        getData();
+    }
+
+    function handleComboSizeChange(val) {
+        vData.comboPageable.size = val;
+        getComboData();
+    }
+
+    function handleComboCurrentChange(val) {
+        vData.comboPageable.page = val;
+        getComboData();
+    }
+
+    function handleProjectSizeChange(val) {
+        vData.projectPageable.size = val;
+        getProjectData();
+    }
+
+    function handleProjectCurrentChange(val) {
+        vData.projectPageable.page = val;
+        getProjectData();
+    }
+
+    function resetQuery() {
+        vm.$refs['queryFormRef'].resetFields();
+        getData();
+    }
+
+    function comboDoQuery() {
+        getComboData();
+    }
+
+    function comboResetQuery() {
+        vm.$refs['comboQueryFormRef'].resetFields();
+        getComboData();
+    }
+
+    function projectDoQuery() {
+        getProjectData();
+    }
+
+    function projectResetQuery() {
+        vm.$refs['projectQueryFormRef'].resetFields();
+        getProjectData();
+    }
+
+    function addData() {
+        vm.editFormFlag = 0;
+        vm.editFormVisible = true;
+    }
+
+    function handleEditFormClose() {
+        resetEditForm();
+    }
+
+    function saveData() {
+        vm.$refs['editFormRef'].validate((valid) => {
+            if (valid) {
+                vm.$confirm('确认保存？')
+                    .then(_ => {
+                        saveProject();
+                    })
+                    .catch(_ => {
+                    });
+            } else {
+                return false;
+            }
+        })
+    }
+
+    function resetEditForm() {
+        vm.editFormVisible = false;
+        vm.$refs['editFormRef'].resetFields();
+        vm.editForm = {}
+    }
+
+
+    function saveProject() {
+        console.log('操作的数据: ', vm.editForm)
+        axios.post('/api/customer/saveOrUpdate', vm.editForm)
+            .then(function (response) {
+                let res = response.data;
+                if (res.code === 200) {
+                    resetEditForm();
+                    getData();
+                }
+                myEl.elAlert(res.code, res.msg);
+            })
+            .catch(function (error) {
+            })
+    }
+
+    function updateDeleted(id, deleted) {
+        vm.$confirm('确认' + (deleted === 0 ? '恢复' : '删除') + '？')
+            .then(_ => {
+                let vJsonForm = {params: {id: id, deleted: deleted}};
+                console.log(vJsonForm)
+                axios.delete('/api/customer/updateDeleted', vJsonForm)
+                    .then(function (response) {
+                        let res = response.data;
+                        if (res.code === 200) {
+                            getData();
+                        }
+                        myEl.elAlert(res.code, res.msg);
+                    })
+                    .catch(function (error) {
+                    })
+            })
+            .catch(_ => {
+            });
+
+    }
+
+    function savePayAmount() {
+        vm.$confirm('确认充值？')
+            .then(_ => {
+                axios.post('/api/customer/savePayAmount', vm.payForm)
+                    .then(function (response) {
+                        let res = response.data;
+                        if (res.code === 200) {
+                            vm.payFormVisible = false;
+                            vm.payForm = {payAmount: '100.00'}
+                            getData();
+                        }
+                        myEl.elAlert(res.code, res.msg);
+                    })
+                    .catch(function (error) {
+                    })
+            })
+            .catch(_ => {
+            });
+    }
+
+
+    function handleTabClick(tab, event) {
+        if (tab.name === '2') {
+            getProjectData();
+        }
+
+    }
+
+
+    function getCustomerCombo(id) {
+        let vJsonForm = {params: {csmId: id}};
+        axios.get('/api/customer/getCanUseCombo/' + id, vJsonForm)
+            .then(function (response) {
+                let res = response.data;
+                vData.canUseComboTableData = res.data;
+            })
+            .catch(function (error) {
+            })
+    }
+
+    function openComboTableDrawer() {
+        vm.innerDrawer = true;
+        getComboData();
+    }
+
+    function getComboData() {
+        let vJsonForm = {"pageable": vData.comboPageable, "deleted": 0};
+        vJsonForm = Object.assign(vJsonForm, vData.comboQueryForm)
+        axios.post('/api/combo/list', vJsonForm)
+            .then(function (response) {
+                let res = response.data;
+                vData.comboTableData = res.data.content;
+                vData.comboPageable.total = res.data.count;
+            })
+            .catch(function (error) {
+            })
+    }
+
+    function getProjectData() {
+        let vJsonForm = {"pageable": vData.projectPageable, "deleted": 0};
+        vJsonForm = Object.assign(vJsonForm, vData.projectQueryForm)
+        axios.post('/api/project/list', vJsonForm)
+            .then(function (response) {
+                let res = response.data;
+                vData.projectTableData = res.data.content;
+                vData.projectPageable.total = res.data.count;
+            })
+            .catch(function (error) {
+            })
+    }
+
+    function payCombo() {
+        vm.$confirm('确认购买？')
+            .then(_ => {
+                if (vm.drawerConfig.activeName === '1') {
+                    let vJsonForm = {
+                        csmId: vm.drawerConfig.currentCsmId,
+                        cboId: vm.drawerConfig.currentCboId,
+                        payWay: vm.drawerConfig.payWay,
+                        amount: vm.drawerConfig.amount,
+                    };
+                    axios.post('/api/customer/payCombo', vJsonForm)
+                        .then(function (response) {
+                            let res = response.data;
+                            myEl.elAlert(res.code, res.msg);
+                            vm.amountFormVisible = false;
+                            getCustomerCombo(vm.drawerConfig.currentCsmId)
+                            vm.innerDrawer = false;
+                            getData();
+                        })
+                        .catch(function (error) {
+                        })
+                } else {
+                    let vJsonForm = {
+                        csmId: vm.drawerConfig.currentCsmId,
+                        proId: vm.drawerConfig.currentCboId,
+                        payWay: vm.drawerConfig.payWay,
+                        amount: vm.drawerConfig.amount,
+                    };
+                    axios.post('/api/customer/payProject', vJsonForm)
+                        .then(function (response) {
+                            let res = response.data;
+                            myEl.elAlert(res.code, res.msg);
+                            if (res.code === 200) {
+                                vm.amountFormVisible = false;
+                                vm.drawerVisible = false;
+                                getData();
+                            }
+
+                        })
+                        .catch(function (error) {
+                        })
+                }
+
+            })
+            .catch(_ => {
+            });
+
+    }
+
+    function comboCutDown(id) {
+        vm.$confirm('确认消减次数？')
+            .then(_ => {
+                let vJsonForm = {
+                    id: id,
+                    num: 1
+                };
+                axios.post('/api/customer/combo/cutDown', vJsonForm)
+                    .then(function (response) {
+                        let res = response.data;
+                        myEl.elAlert(res.code, res.msg);
+                        getCustomerCombo(vm.drawerConfig.currentCsmId)
+                    })
+                    .catch(function (error) {
+                    })
+            })
+            .catch(_ => {
+            });
+    }
+
+    function getComboUseRecord(id) {
+        let vJsonForm = {params: {ccId: id}};
+        axios.get('/api/customer/getUseComboRecord/' + id, vJsonForm)
+            .then(function (response) {
+                let res = response.data;
+                vData.comboUseRecordData = res.data;
+            })
+            .catch(function (error) {
+            })
+    }
+
+
+</script>
+</body>
+
+<style>
+    [v-cloak] {
+        display: none;
+    }
+
+    .edit-form .el-form-item {
+        width: 400px;
+    }
+
+    .edit-form .el-select {
+        width: 100%;
+    }
+
+    .edit-form .el-input-number {
+        width: 100%;
+    }
+
+    .drawer-tabs {
+        padding: 0 50px 20px 50px;
+    }
+
+</style>
+</html>

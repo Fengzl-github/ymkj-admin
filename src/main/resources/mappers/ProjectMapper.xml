@@ -1,0 +1,164 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.ym.admin.mapper.ProjectMapper">
+
+    <resultMap id="project" type="com.ym.admin.entity.Project">
+        <result column="id" property="id" jdbcType="INTEGER"/>
+        <result column="create_time" property="createTime" jdbcType="TIMESTAMP"/>
+        <result column="un_code" property="unCode" jdbcType="VARCHAR"/>
+        <result column="pro_name" property="proName" jdbcType="VARCHAR"/>
+        <result column="note" property="note" jdbcType="VARCHAR"/>
+        <result column="type" property="type" jdbcType="INTEGER"/>
+        <result column="deleted" property="deleted" jdbcType="INTEGER"/>
+        <result column="price" property="price" jdbcType="DECIMAL"/>
+        <result column="vip_price" property="vipPrice" jdbcType="DECIMAL"/>
+    </resultMap>
+
+    <sql id="project_sel">
+        id
+        ,create_time,un_code,pro_name,note,type,deleted,price,vip_price
+    </sql>
+
+
+    <select id="findAll" resultMap="project" parameterType="com.ym.admin.vo.pro.ProjectListVO">
+        select
+        <include refid="project_sel"/>
+        from t_project
+        where 1=1
+        <if test="proName != null and proName != ''">
+            and pro_name like CONCAT('%',#{proName},'%')
+        </if>
+        <if test="type != null and type != 0">
+            and type = #{type}
+        </if>
+        order by deleted asc, create_time desc
+    </select>
+    <select id="findById" resultMap="project" parameterType="java.lang.Integer">
+        select
+        <include refid="project_sel"/>
+        from t_project
+        where id = #{id}
+    </select>
+
+
+    <insert id="insertOrUpdate" parameterType="com.ym.admin.vo.pro.ProjectVO">
+        <selectKey keyProperty="count" resultType="java.lang.Integer" order="BEFORE">
+            select count(1) from t_project where id = #{id}
+        </selectKey>
+        <if test="count > 0">
+            update t_project
+            <set>
+                <trim suffixOverrides=",">
+                    <if test="unCode != null and unCode != ''">
+                        un_code = #{unCode},
+                    </if>
+                    <if test="proName != null and proName != ''">
+                        pro_name = #{proName},
+                    </if>
+                    <if test="note != null and note != ''">
+                        note = #{note},
+                    </if>
+                    <if test="type != null and type != 0">
+                        type = #{type},
+                    </if>
+                    <if test="price != null">
+                        price = #{price},
+                    </if>
+                    <if test="vipPrice != null">
+                        vip_price = #{vipPrice},
+                    </if>
+                </trim>
+            </set>
+            where id = #{id}
+        </if>
+        <if test="count == 0">
+            insert into t_project
+            <trim prefix="(" suffix=")" suffixOverrides=",">
+                <if test="unCode != null and unCode != ''">
+                    un_code,
+                </if>
+                <if test="proName != null and proName != ''">
+                    pro_name,
+                </if>
+                <if test="note != null and note != ''">
+                    note,
+                </if>
+                <if test="type != null and type != 0">
+                    type,
+                </if>
+                <if test="price != null">
+                    price,
+                </if>
+                <if test="vipPrice != null">
+                    vip_price,
+                </if>
+            </trim>
+            <trim prefix="VALUES(" suffix=")" suffixOverrides=",">
+                <if test="unCode != null and unCode != ''">
+                    #{unCode},
+                </if>
+                <if test="proName != null and proName != ''">
+                    #{proName},
+                </if>
+                <if test="note != null and note != ''">
+                    #{note},
+                </if>
+                <if test="type != null and type != 0">
+                    #{type},
+                </if>
+                <if test="price != null">
+                    #{price},
+                </if>
+                <if test="vipPrice != null">
+                    #{vipPrice},
+                </if>
+            </trim>
+        </if>
+    </insert>
+
+
+    <update id="updateDeleted">
+        update t_project set deleted = #{deleted}
+        where id = #{id}
+    </update>
+
+    <insert id="saveRecord" parameterType="com.ym.admin.entity.ProjectChangeRecord">
+        insert into t_project_change_record
+        <trim prefix="(" suffix=")" suffixOverrides=",">
+            <if test="proId != null">
+                pro_id,
+            </if>
+            <if test="beforeContent != null and beforeContent != ''">
+                before_content,
+            </if>
+            <if test="afterContent != null and afterContent != ''">
+                after_content,
+            </if>
+        </trim>
+        <trim prefix="VALUES(" suffix=")" suffixOverrides=",">
+            <if test="proId != null">
+                #{proId},
+            </if>
+            <if test="beforeContent != null and beforeContent != ''">
+                #{beforeContent},
+            </if>
+            <if test="afterContent != null and afterContent != ''">
+                #{afterContent},
+            </if>
+        </trim>
+    </insert>
+
+
+    <select id="findAllRecord" resultType="com.ym.admin.dto.cbo.RecordListDTO" parameterType="com.ym.admin.vo.RecordListVO">
+        select cr.id,cr.create_time as createTime,c.un_code as unCode,
+        cr.before_content as beforeContent, cr.after_content as afterContent
+        from t_project_change_record cr
+        left join t_project c on c.id = cr.pro_id
+        where 1=1
+        <if test="unCode != null and unCode != ''">
+            and c.un_code = #{unCode}
+        </if>
+        order by cr.create_time desc
+    </select>
+
+</mapper>

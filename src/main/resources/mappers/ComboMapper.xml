@@ -1,0 +1,161 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.ym.admin.mapper.ComboMapper">
+
+    <resultMap id="combo" type="com.ym.admin.entity.Combo">
+        <result column="id" property="id" jdbcType="INTEGER"/>
+        <result column="create_time" property="createTime" jdbcType="TIMESTAMP"/>
+        <result column="un_code" property="unCode" jdbcType="VARCHAR"/>
+        <result column="cbo_name" property="cboName" jdbcType="VARCHAR"/>
+        <result column="price" property="price" jdbcType="DECIMAL"/>
+        <result column="vip_price" property="vipPrice" jdbcType="DECIMAL"/>
+        <result column="num" property="num" jdbcType="INTEGER"/>
+        <result column="detail" property="detail" jdbcType="VARCHAR"/>
+        <result column="deleted" property="deleted" jdbcType="INTEGER"/>
+    </resultMap>
+
+    <sql id="combo_sel">
+        id
+        ,create_time,un_code,cbo_name,price,vip_price,num,detail,deleted
+    </sql>
+
+    <select id="findAll" resultMap="combo" parameterType="com.ym.admin.vo.cbo.ComboListVO">
+        select
+        <include refid="combo_sel"/>
+        from t_combo
+        where 1=1
+        <if test="cboName != null and cboName != ''">
+            and cbo_name like CONCAT('%',#{cboName},'%')
+        </if>
+        order by deleted asc, create_time desc
+    </select>
+
+    <select id="findById" resultMap="combo">
+        select
+        <include refid="combo_sel"/>
+        from t_combo
+        where id = #{id}
+    </select>
+
+    <insert id="insertOrUpdate" parameterType="com.ym.admin.vo.cbo.ComboVO">
+        <selectKey keyProperty="count" resultType="java.lang.Integer" order="BEFORE">
+            select count(1) from t_combo where id = #{id}
+        </selectKey>
+        <if test="count > 0">
+            update t_combo
+            <set>
+                <trim suffixOverrides=",">
+                    <if test="unCode != null and unCode != ''">
+                        un_code = #{unCode},
+                    </if>
+                    <if test="cboName != null and cboName != ''">
+                        cbo_name = #{cboName},
+                    </if>
+                    <if test="price != null">
+                        price = #{price},
+                    </if>
+                    <if test="vipPrice != null">
+                        vip_price = #{vipPrice},
+                    </if>
+                    <if test="num != null">
+                        num = #{num},
+                    </if>
+                    <if test="detail != null and detail != ''">
+                        detail = #{detail},
+                    </if>
+                </trim>
+            </set>
+            where id = #{id}
+        </if>
+        <if test="count == 0">
+            insert into t_combo
+            <trim prefix="(" suffix=")" suffixOverrides=",">
+                <if test="unCode != null and unCode != ''">
+                    un_code,
+                </if>
+                <if test="cboName != null and cboName != ''">
+                    cbo_name,
+                </if>
+                <if test="price != null">
+                    price,
+                </if>
+                <if test="vipPrice != null">
+                    vip_price,
+                </if>
+                <if test="num != null">
+                    num,
+                </if>
+                <if test="detail != null and detail != ''">
+                    detail,
+                </if>
+            </trim>
+            <trim prefix="VALUES(" suffix=")" suffixOverrides=",">
+                <if test="unCode != null and unCode != ''">
+                    #{unCode},
+                </if>
+                <if test="cboName != null and cboName != ''">
+                    #{cboName},
+                </if>
+                <if test="price != null">
+                    #{price},
+                </if>
+                <if test="vipPrice != null">
+                    #{vipPrice},
+                </if>
+                <if test="num != null">
+                    #{num},
+                </if>
+                <if test="detail != null and detail != ''">
+                    #{detail},
+                </if>
+            </trim>
+        </if>
+    </insert>
+
+    <update id="updateDeleted">
+        update t_combo
+        set deleted = #{deleted}
+        where id = #{id}
+    </update>
+
+
+    <insert id="saveRecord" parameterType="com.ym.admin.entity.ComboChangeRecord">
+        insert into t_combo_change_record
+        <trim prefix="(" suffix=")" suffixOverrides=",">
+            <if test="cboId != null">
+                cbo_id,
+            </if>
+            <if test="beforeContent != null and beforeContent != ''">
+                before_content,
+            </if>
+            <if test="afterContent != null and afterContent != ''">
+                after_content,
+            </if>
+        </trim>
+        <trim prefix="VALUES(" suffix=")" suffixOverrides=",">
+            <if test="cboId != null">
+                #{cboId},
+            </if>
+            <if test="beforeContent != null and beforeContent != ''">
+                #{beforeContent},
+            </if>
+            <if test="afterContent != null and afterContent != ''">
+                #{afterContent},
+            </if>
+        </trim>
+    </insert>
+
+
+    <select id="findAllRecord" resultType="com.ym.admin.dto.cbo.RecordListDTO"
+            parameterType="com.ym.admin.vo.RecordListVO">
+        select cr.id,cr.create_time as createTime,c.un_code as unCode,
+        cr.before_content as beforeContent, cr.after_content as afterContent
+        from t_combo_change_record cr
+        left join t_combo c on c.id = cr.cbo_id
+        where 1=1
+        <if test="unCode != null and unCode != ''">
+            and c.un_code = #{unCode}
+        </if>
+        order by cr.create_time desc
+    </select>
+</mapper>

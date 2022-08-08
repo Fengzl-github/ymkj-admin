@@ -1,0 +1,82 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.ym.admin.mapper.AccountMapper">
+
+    <resultMap id="account" type="com.ym.admin.entity.Account">
+        <result column="id" property="id" jdbcType="INTEGER"/>
+        <result column="create_time" property="createTime" jdbcType="TIMESTAMP"/>
+        <result column="un_code" property="unCode" jdbcType="VARCHAR"/>
+        <result column="csm_id" property="csmId" jdbcType="INTEGER"/>
+        <result column="balance" property="balance" jdbcType="DECIMAL"/>
+    </resultMap>
+
+    <sql id="account_sel">
+        id
+        ,create_time,un_code,csm_id,balance
+    </sql>
+
+
+    <select id="findById" resultMap="account">
+        select
+        <include refid="account_sel"/>
+        from t_account
+        where id = #{id}
+    </select>
+    <select id="findByCsmId" resultMap="account">
+        select
+        <include refid="account_sel"/>
+        from t_account
+        where csm_id = #{csmId}
+    </select>
+
+
+    <insert id="insertOrUpdate" parameterType="com.ym.admin.entity.Account">
+        <selectKey keyProperty="count" resultType="java.lang.Integer" order="BEFORE">
+            select count(1) from t_account where id = #{id}
+        </selectKey>
+        <if test="count > 0">
+            update t_account
+            <set>
+                <trim suffixOverrides=",">
+                    <if test="unCode != null and unCode != ''">
+                        un_code = #{unCode},
+                    </if>
+                    <if test="csmId != null">
+                        csm_id = #{csmId},
+                    </if>
+                    <if test="balance != null">
+                        balance = #{balance},
+                    </if>
+                </trim>
+            </set>
+            where id = #{id}
+        </if>
+        <if test="count == 0">
+            insert into t_account
+            <trim prefix="(" suffix=")" suffixOverrides=",">
+                <if test="unCode != null and unCode != ''">
+                    un_code,
+                </if>
+                <if test="csmId != null and csmId != ''">
+                    csm_id,
+                </if>
+                <if test="balance != null and balance != ''">
+                    balance,
+                </if>
+            </trim>
+            <trim prefix="VALUES(" suffix=")" suffixOverrides=",">
+                <if test="unCode != null and unCode != ''">
+                    #{unCode},
+                </if>
+                <if test="csmId != null">
+                    #{csmId},
+                </if>
+                <if test="balance != null">
+                    #{balance},
+                </if>
+            </trim>
+        </if>
+    </insert>
+
+
+</mapper>

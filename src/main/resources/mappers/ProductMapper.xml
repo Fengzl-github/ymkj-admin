@@ -1,0 +1,108 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.ym.admin.mapper.ProductMapper">
+
+    <resultMap id="product" type="com.ym.admin.entity.Product">
+        <result column="id" property="id" jdbcType="INTEGER"/>
+        <result column="create_time" property="createTime" jdbcType="TIMESTAMP"/>
+        <result column="un_code" property="unCode" jdbcType="VARCHAR"/>
+        <result column="prod_name" property="prodName" jdbcType="VARCHAR"/>
+        <result column="stock" property="stock" jdbcType="INTEGER"/>
+        <result column="deleted" property="deleted" jdbcType="INTEGER"/>
+    </resultMap>
+
+    <sql id="product_sel">
+        id
+        ,create_time,un_code,prod_name,stock,deleted
+    </sql>
+
+
+    <select id="findAll" resultMap="product" parameterType="com.ym.admin.vo.prod.ProductListVO">
+        select
+        <include refid="product_sel"/>
+        from t_product
+        where 1=1
+        <if test="prodName != null and prodName != ''">
+            and prod_name like CONCAT('%',#{prodName},'%')
+        </if>
+        order by deleted asc, create_time desc
+    </select>
+
+
+    <select id="findById" resultMap="product" parameterType="java.lang.Integer">
+        select
+        <include refid="product_sel"/>
+        from t_product
+        where id = #{id}
+    </select>
+
+
+    <insert id="update" parameterType="com.ym.admin.entity.Product">
+        update t_product
+        <set>
+            <trim suffixOverrides=",">
+                <if test="unCode != null and unCode != ''">
+                    un_code = #{unCode},
+                </if>
+                <if test="prodName != null and prodName != ''">
+                    prod_name = #{prodName},
+                </if>
+                <if test="stock != null">
+                    stock = #{stock},
+                </if>
+            </trim>
+        </set>
+        where id = #{id}
+    </insert>
+
+    <insert id="insert" parameterType="com.ym.admin.entity.Product" useGeneratedKeys="true" keyProperty="id">
+        insert into t_product
+        <trim prefix="(" suffix=")" suffixOverrides=",">
+            <if test="unCode != null and unCode != ''">
+                un_code,
+            </if>
+            <if test="prodName != null and prodName != ''">
+                prod_name,
+            </if>
+            <if test="stock != null">
+                stock,
+            </if>
+        </trim>
+        <trim prefix="VALUES(" suffix=")" suffixOverrides=",">
+            <if test="unCode != null and unCode != ''">
+                #{unCode},
+            </if>
+            <if test="prodName != null and prodName != ''">
+                #{prodName},
+            </if>
+            <if test="stock != null">
+                #{stock},
+            </if>
+        </trim>
+    </insert>
+
+    <insert id="saveRecord" parameterType="com.ym.admin.entity.ProductOutInRecord" useGeneratedKeys="true" keyProperty="id">
+        insert into t_product_out_in_record(type, prod_id, num, note)
+        values (#{type}, #{prodId}, #{num}, #{note})
+    </insert>
+
+
+    <select id="findOutInRecordList" resultType="com.ym.admin.dto.prod.ProductOutInRecordDTO"
+            parameterType="com.ym.admin.vo.prod.ProductOutInListVO">
+        select pr.id,pr.create_time as createTime,pr.type,pr.prod_id as prodId,
+               p.prod_name as prodName,pr.num,pr.note
+        from t_product_out_in_record pr
+        left join t_product p on pr.prod_id = p.id
+        where 1=1
+        <if test="prodName != null and prodName != ''">
+            and p.prod_name like CONCAT('%',#{prodName},'%')
+        </if>
+        <if test="type != null">
+            and pr.type = #{type}
+        </if>
+        order by pr.create_time desc
+
+
+    </select>
+
+</mapper>

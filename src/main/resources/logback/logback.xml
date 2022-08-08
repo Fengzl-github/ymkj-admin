@@ -1,0 +1,25 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<configuration scan="false" debug="false">
+
+    <!--控制台输出-->
+    <appender name="STDOUT" class="ch.qos.logback.core.ConsoleAppender">
+        <encoder>
+            <pattern>%d{HH:mm:ss.SSS} [%thread] %-5level %logger{50}:%line - %msg%n</pattern>
+        </encoder>
+    </appender>
+    <!--控制台异步输出-->
+    <appender name="ASYNC_STDOUT" class="ch.qos.logback.classic.AsyncAppender">
+        <discardingThreshold>0</discardingThreshold>
+        <queueSize>${DEFAULT_ASYNC_QUEUE_SIZE}</queueSize>
+        <includeCallerData>true</includeCallerData>
+        <appender-ref ref="STDOUT"/>
+    </appender>
+    <!--输出级别-->
+    <root level="info">
+        <appender-ref ref="ASYNC_STDOUT" />
+    </root>
+    <!-- 定制输出mybatis SQL -->
+    <!--<logger name="com.ym.admin.mapper" level="debug" additivity="false">
+        <appender-ref ref="ASYNC_STDOUT"/>
+    </logger>-->
+</configuration>

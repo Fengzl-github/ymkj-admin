@@ -1,0 +1,292 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.ym.admin.mapper.CustomerPayMapper">
+
+    <resultMap id="customerCombo" type="com.ym.admin.entity.CustomerCombo">
+        <result column="id" property="id" jdbcType="INTEGER"/>
+        <result column="create_time" property="createTime" jdbcType="TIMESTAMP"/>
+        <result column="cbo_un_code" property="cboUnCode" jdbcType="VARCHAR"/>
+        <result column="cbo_name" property="cboName" jdbcType="VARCHAR"/>
+        <result column="cbo_detail" property="cboDetail" jdbcType="VARCHAR"/>
+        <result column="cbo_num" property="cboNum" jdbcType="INTEGER"/>
+        <result column="last_num" property="lastNum" jdbcType="INTEGER"/>
+        <result column="cbo_price" property="cboPrice" jdbcType="DECIMAL"/>
+        <result column="cbo_vip_price" property="cboVipPrice" jdbcType="DECIMAL"/>
+        <result column="amount" property="amount" jdbcType="DECIMAL"/>
+        <result column="status" property="status" jdbcType="INTEGER"/>
+    </resultMap>
+
+    <resultMap id="customerUseComboRecord" type="com.ym.admin.entity.CustomerUseComboRecord">
+        <result column="id" property="id" jdbcType="INTEGER"/>
+        <result column="create_time" property="createTime" jdbcType="TIMESTAMP"/>
+        <result column="cc_id" property="ccId" jdbcType="INTEGER"/>
+        <result column="cbo_name" property="cboName" jdbcType="VARCHAR"/>
+    </resultMap>
+
+    <sql id="customerCombo_sel">
+        id
+        ,create_time,cbo_un_code,cbo_name,cbo_detail,cbo_num,last_num,cbo_price,cbo_vip_price,amount,status
+    </sql>
+    <sql id="customerUseComboRecord_sel">
+        id
+        ,create_time,cc_id,cbo_name
+    </sql>
+
+    <select id="findPayRecord" resultType="com.ym.admin.dto.csm.CustomerGstRecordDTO"
+            parameterType="com.ym.admin.vo.csm.GstRecordListVO">
+        select
+        pr.id,pr.create_time as createTime,pr.type,pr.csm_id as csmId,
+        c.un_code as unCode,c.csm_name as csmName,pr.amount,pr.note
+        from t_customer_pay_record pr
+        left join t_customer c on c.id = pr.csm_id
+        where 1=1
+        <if test="csmName != null and csmName != ''">
+            and c.csm_name like CONCAT('%',#{csmName},'%')
+        </if>
+        order by pr.create_time desc
+    </select>
+    <select id="getCanUseCombo" resultMap="customerCombo">
+        select
+        <include refid="customerCombo_sel"/>
+        from t_customer_combo
+        where status = 0 and csm_id = #{csmId}
+    </select>
+    <select id="findById" resultMap="customerCombo">
+        select
+        <include refid="customerCombo_sel"/>
+        from t_customer_combo
+        where id = #{id}
+    </select>
+
+    <select id="getUseComboRecord" resultMap="customerUseComboRecord">
+        select
+        <include refid="customerUseComboRecord_sel"/>
+        from t_customer_usecombo_record
+        where cc_id = #{ccId}
+    </select>
+
+
+    <insert id="insertPayRecord" parameterType="com.ym.admin.entity.CustomerPayRecord">
+        insert into t_customer_pay_record
+        <trim prefix="(" suffix=")" suffixOverrides=",">
+            <if test="type != null and type != 0">
+                type,
+            </if>
+            <if test="csmId != null and csmId != 0">
+                csm_id,
+            </if>
+            <if test="amount != null">
+                amount,
+            </if>
+            <if test="note != null and note != ''">
+                note,
+            </if>
+        </trim>
+        <trim prefix="VALUES(" suffix=")" suffixOverrides=",">
+            <if test="type != null and type != 0">
+                #{type},
+            </if>
+            <if test="csmId != null and csmId != 0">
+                #{csmId},
+            </if>
+            <if test="amount != null">
+                #{amount},
+            </if>
+            <if test="note != null and note != ''">
+                #{note},
+            </if>
+        </trim>
+    </insert>
+
+
+    <insert id="insertCustomerCombo" parameterType="com.ym.admin.entity.CustomerCombo">
+        insert into t_customer_combo
+        <trim prefix="(" suffix=")" suffixOverrides=",">
+            <if test="csmId != null and csmId != 0">
+                csm_id,
+            </if>
+            <if test="cboId != null and cboId != 0">
+                cbo_id,
+            </if>
+            <if test="cboUnCode != null and cboUnCode != ''">
+                cbo_un_code,
+            </if>
+            <if test="cboName != null and cboName != ''">
+                cbo_name,
+            </if>
+            <if test="cboDetail != null and cboDetail != ''">
+                cbo_detail,
+            </if>
+            <if test="cboNum != null">
+                cbo_num,
+            </if>
+            <if test="lastNum != null">
+                last_num,
+            </if>
+            <if test="cboPrice != null">
+                cbo_price,
+            </if>
+            <if test="cboVipPrice != null">
+                cbo_vip_price,
+            </if>
+            <if test="amount != null">
+                amount,
+            </if>
+            <if test="payWay != null">
+                pay_way,
+            </if>
+        </trim>
+        <trim prefix="VALUES(" suffix=")" suffixOverrides=",">
+            <if test="csmId != null and csmId != 0">
+                #{csmId},
+            </if>
+            <if test="cboId != null and cboId != 0">
+                #{cboId},
+            </if>
+            <if test="cboUnCode != null and cboUnCode != ''">
+                #{cboUnCode},
+            </if>
+            <if test="cboName != null and cboName != ''">
+                #{cboName},
+            </if>
+            <if test="cboDetail != null and cboDetail != ''">
+                #{cboDetail},
+            </if>
+            <if test="cboNum != null">
+                #{cboNum},
+            </if>
+            <if test="lastNum != null">
+                #{lastNum},
+            </if>
+            <if test="cboPrice != null">
+                #{cboPrice},
+            </if>
+            <if test="cboVipPrice != null">
+                #{cboVipPrice},
+            </if>
+            <if test="amount != null">
+                #{amount},
+            </if>
+            <if test="payWay != null">
+                #{payWay},
+            </if>
+        </trim>
+    </insert>
+    <update id="updateCustomerCombo" parameterType="com.ym.admin.entity.CustomerCombo">
+        update t_customer_combo
+        <set>
+            <trim suffixOverrides=",">
+                <if test="csmId != null and csmId != 0">
+                    csm_id = #{csmId},
+                </if>
+                <if test="cboId != null and cboId != 0">
+                    cbo_id = #{cboId},
+                </if>
+                <if test="cboUnCode != null and cboUnCode != ''">
+                    cbo_un_code = #{cboUnCode},
+                </if>
+                <if test="cboName != null and cboName != ''">
+                    cbo_name = #{cboName},
+                </if>
+                <if test="cboDetail != null and cboDetail != ''">
+                    cbo_detail = #{cboDetail},
+                </if>
+                <if test="cboNum != null">
+                    cbo_num = #{cboNum},
+                </if>
+                <if test="lastNum != null">
+                    last_num = #{lastNum},
+                </if>
+                <if test="cboPrice != null">
+                    cbo_price = #{cboPrice},
+                </if>
+                <if test="cboVipPrice != null">
+                    cbo_vip_price = #{cboVipPrice},
+                </if>
+                <if test="amount != null">
+                    amount = #{amount},
+                </if>
+                <if test="status != null">
+                    status = #{status},
+                </if>
+            </trim>
+        </set>
+        where id = #{id}
+    </update>
+    <insert id="insertCustomerProject" parameterType="com.ym.admin.entity.CustomerProject">
+        insert into t_customer_project
+        <trim prefix="(" suffix=")" suffixOverrides=",">
+            <if test="csmId != null and csmId != 0">
+                csm_id,
+            </if>
+            <if test="proId != null and proId != 0">
+                pro_id,
+            </if>
+            <if test="proUnCode != null and proUnCode != ''">
+                pro_un_code,
+            </if>
+            <if test="proName != null and proName != ''">
+                pro_name,
+            </if>
+            <if test="proNote != null and proNote != ''">
+                pro_note,
+            </if>
+            <if test="proPrice != null">
+                pro_price,
+            </if>
+            <if test="proVipPrice != null">
+                pro_vip_price,
+            </if>
+            <if test="amount != null">
+                amount,
+            </if>
+        </trim>
+        <trim prefix="VALUES(" suffix=")" suffixOverrides=",">
+            <if test="csmId != null and csmId != 0">
+                #{csmId},
+            </if>
+            <if test="proId != null and proId != 0">
+                #{proId},
+            </if>
+            <if test="proUnCode != null and proUnCode != ''">
+                #{proUnCode},
+            </if>
+            <if test="proName != null and proName != ''">
+                #{proName},
+            </if>
+            <if test="proNote != null and proNote != ''">
+                #{proNote},
+            </if>
+            <if test="proPrice != null">
+                #{proPrice},
+            </if>
+            <if test="proVipPrice != null">
+                #{proVipPrice},
+            </if>
+            <if test="amount != null">
+                #{amount},
+            </if>
+        </trim>
+    </insert>
+    <insert id="insertUseComboRecord" parameterType="com.ym.admin.entity.CustomerUseComboRecord">
+        insert into t_customer_usecombo_record
+        <trim prefix="(" suffix=")" suffixOverrides=",">
+            <if test="ccId != null">
+                cc_id,
+            </if>
+            <if test="cboName != null and cboName != ''">
+                cbo_name,
+            </if>
+        </trim>
+        <trim prefix="VALUES(" suffix=")" suffixOverrides=",">
+            <if test="ccId != null">
+                #{ccId},
+            </if>
+            <if test="cboName != null and cboName != ''">
+                #{cboName},
+            </if>
+        </trim>
+    </insert>
+
+
+</mapper>
